@@ -1,6 +1,8 @@
 App={
     web3Provider:null,
     contracts:{},
+    account:'0x0',
+    hasVoted:false,
 
     init:async function(){
         return await App.initWeb3();
@@ -33,6 +35,18 @@ App={
     },
     render:function(){
         var electionInstance;
+
+        var loader=$("#loader");
+        var content=$("#content");
+        loader.show();
+        content.hide();
+        web3.eth.getCoinbase(function(err,account){
+            if(err===null){
+                App.account=account;
+                $("#accountAddress").html("Your account:   "+account);
+            }
+        });
+
         App.contracts.Election.deployed().then(function(instance){
             electionInstance=instance;
             return electionInstance.candidateCount();
@@ -52,7 +66,28 @@ App={
                     candidateSelect.append(candidateOption);
                 })
             }
-        })
+            return electionInstance.voters(App.account);
+        }).then(function(hasVoted){
+            if(hasVoted){
+                $("form").hide();
+            }
+            loader.hide();
+            content.show();
+        }).catch(function(err){
+            console.warn(err);
+        });
+    },
+    
+    castVote:function(){
+        var candidateId=$("#candidateSelect").val();
+        App.contracts.Election.deployed().then(function(instance){
+            return instance.vote(candidateId,{from:App.account});
+        }).then(function(result){
+            $("#loader").show();
+            $("#content").hide();
+        }).catch(function(err){
+            console.log(err);
+        });
     }
 };
 
